@@ -1,0 +1,171 @@
+@page "/redis-keys"
+@using StackExchange.Redis
+@inject RedisService RedisService
+
+<h3>Redis Keys</h3>
+<!-- 按钮和搜索框布局 -->
+<MudGrid>
+    <MudItem xs="6">
+        <MudButton @onclick="LoadKeys" Variant="Variant.Filled" Size="Size.Large" Color="Color.Secondary">Load Keys</MudButton>
+    </MudItem>
+    <MudItem xs="6" align="end">
+        <MudTextField @bind-Value="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Secondary" />
+    </MudItem>
+</MudGrid>
+<MudCard>
+@if (!string.IsNullOrEmpty(selectedKey))
+{
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h3">Key: @selectedKey</MudText> <MudSpacer />
+            <MudText Typo="Typo.subtitle2">Type: @selectedType</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent> 
+        @switch (selectedType)
+        {
+            case "String":
+                <MudText Typo="Typo.body1">Value: @keyValue</MudText>
+                break;
+            case "Hash":
+                    @foreach (var field in hashValues)
+                    {
+                        <MudPaper Class=" pa-4 align-start d-flex" Style="width: 250px;" Outlined="true">
+                            <MudPaper Class="pa-3" Elevation="6">Key: @field.Key</MudPaper>
+                            <MudSpacer />
+                            <MudPaper Class="pa-3" Elevation="6">Value: @field.Value</MudPaper>
+                        </MudPaper>
+                    }
+                break;
+            case "List":
+                @* <ol>
+                    @foreach (var item in listValues)
+                    {
+                        <li>@item</li>
+                    }
+                </ol> *@
+                <MudList T="string">
+                    Value: 
+                    @foreach (var item in listValues)
+                    {
+                        <MudListItem>@item</MudListItem>
+                    }
+                </MudList>
+                break;
+            case "Set":
+                @* <ul>
+                    @foreach (var member in setValues)
+                    {
+                        <li>@member</li>
+                    }
+                </ul> *@
+                <MudList T="string">
+                    Value: 
+                    @foreach (var member in setValues)
+                    {
+                        <MudListItem>@member</MudListItem>
+                    }
+                </MudList>
+                break;
+            case "SortedSet":
+                @* <ul>
+                    @foreach (var zitem in sortedSetValues)
+                    {
+                        <li>@zitem.Element: @zitem.Score</li>
+                    }
+                </ul> *@
+                <MudList T="string">
+                    
+                    @foreach (var zitem in sortedSetValues)
+                    {
+                        <MudListItem>Value: @zitem.Element-------------Score: @zitem.Score </MudListItem>
+                    }
+                </MudList>
+                break;
+        }
+    </MudCardContent>
+}
+</MudCard>
+@if (FilteredKeys != null)
+{
+    <MudStack>
+        @foreach (var keyEntry in FilteredKeys)
+        {
+            <MudPaper  Class="pa-3"  >
+                <MudButton @onclick="() => SelectKey(keyEntry.Key)" Variant="Variant.Filled" Color="Color.Primary">@keyEntry.Key</MudButton>  -  类型： @keyEntry.Value
+            </MudPaper>
+        }
+    </MudStack>
+}
+
+
+@code {
+    private Dictionary<string, string> keys= new Dictionary<string, string>{}; // 用于存储键和类型
+    private string selectedKey = string.Empty;
+    private string selectedType = string.Empty;
+    private string keyValue = string.Empty;
+    private Dictionary<string, string> hashValues = new();
+    private List<string> listValues = new();
+    private List<string> setValues = new();
+    private List<SortedSetEntry> sortedSetValues = new();
+    public string Search{get;set;}=string.Empty;
+
+    // 过滤后的键列表，实时更新
+    private Dictionary<string, string> FilteredKeys => string.IsNullOrEmpty(Search) 
+        ? keys 
+        : keys.Where(k => k.Key.Contains(Search, StringComparison.OrdinalIgnoreCase)).ToDictionary(k => k.Key, k => k.Value);
+
+    private async Task LoadKeys()
+    {
+        var allKeys = RedisService.GetAllKeysAsync();
+        keys = new Dictionary<string, string>();
+
+        foreach (var key in allKeys)
+        {
+            var type = await RedisService.GetKeyTypeAsync(key);
+            keys[key] = type; // 存储键和类型
+        }
+    }
+
+    private async Task SelectKey(string key)
+    {
+        selectedKey = key;
+        selectedType = await RedisService.GetKeyTypeAsync(key);
+
+        switch (selectedType)
+        {
+            case "String":
+                ClearOtherValues();
+                keyValue = await RedisService.GetValueAsync(key);
+                break;
+            case "Hash":
+                ClearOtherValues();
+                hashValues = await RedisService.GetHashValuesAsync(key);
+                break;
+            case "List":
+                ClearOtherValues();
+                listValues = await RedisService.GetListValuesAsync(key);                
+                break;
+            case "Set":
+                ClearOtherValues();
+                setValues = await RedisService.GetSetValuesAsync(key);                
+                break;
+            case "SortedSet":
+                ClearOtherValues();
+                sortedSetValues = await RedisService.GetSortedSetValuesAsync(key);                
+                break;
+            default:
+                keyValue = "Unsupported key type";
+                break;
+        }
+    }
+
+    private void ClearOtherValues()
+    {
+        keyValue = string.Empty;
+        hashValues.Clear();
+        listValues.Clear();
+        setValues.Clear();
+        sortedSetValues.Clear();
+    }
+}

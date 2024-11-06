@@ -1,0 +1,125 @@
+@page "/redis-editor"
+@inject RedisService RedisService
+@inject IDialogService DialogService
+
+<h3>Redis Adding</h3>
+<div>
+    <MudSelect @bind-Value="selectedType" Label="Data Type:" HelperText="tring" Placeholder="Please Select" AdornmentIcon="@Icons.Material.Filled.Apps" AdornmentColor="Color.Primary">
+        <MudSelectItem Value="@("String")">String</MudSelectItem>
+        <MudSelectItem Value="@("Hash")">Hash</MudSelectItem>
+        <MudSelectItem Value="@("List")">List</MudSelectItem>
+        <MudSelectItem Value="@("Set")">Set</MudSelectItem>
+        <MudSelectItem Value="@("SortedSet")">SortedSet</MudSelectItem>
+    </MudSelect>
+</div>
+
+<div>
+    <label>Key:</label>
+    <MudTextField @bind-Value="key" Label="please input Key" Variant="Variant.Outlined"></MudTextField>
+
+</div>
+
+@if (selectedType == "String")
+{
+    <div>
+        <label>Value:</label>
+        <MudTextField @bind-Value="value" Label="please input Value" Variant="Variant.Outlined"></MudTextField>
+    </div>
+}
+else if (selectedType == "Hash")
+{
+    <div>
+        <label>Field:</label>
+        <MudTextField @bind-Value="hashField" Label="please input hashField" Variant="Variant.Outlined"></MudTextField>
+        <label>Value:</label>
+        <MudTextField @bind-Value="value" Label="please input Value" Variant="Variant.Outlined"></MudTextField>
+    </div>
+}
+else if (selectedType == "List")
+{
+    <div>
+        <label>Value:</label>
+        <MudTextField @bind-Value="value" Label="please input Value" Variant="Variant.Outlined"></MudTextField>
+    </div>
+}
+else if (selectedType == "Set")
+{
+    <div>
+        <label>Member:</label>
+        <MudTextField @bind-Value="value" Label="please input Value" Variant="Variant.Outlined"></MudTextField>
+    </div>
+}
+else if (selectedType == "SortedSet")
+{
+    <div>
+        <label>Member:</label>
+        <MudTextField @bind-Value="value" Label="please input Value" Variant="Variant.Outlined"></MudTextField>
+        <label>Score:</label>
+        <MudTextField @bind-Value="sortedSetScore" InputType="InputType.Number" Label="please input Score" Variant="Variant.Outlined"></MudTextField>
+    </div>
+}
+<div>
+    <MudButton OnClick="InsertData" Color="Color.Primary" Variant="Variant.Filled">Insert Data</MudButton>
+</div>
+
+@code {
+    private string key=string.Empty;
+    private string value=string.Empty;
+    private string hashField=string.Empty;
+    private double sortedSetScore;
+    private string selectedType{get;set;} ="String";
+    
+    private async Task InsertData()
+    {
+        if (string.IsNullOrEmpty(key))
+        {
+            Console.WriteLine("Key is required.");
+            return;
+        }
+
+        switch (selectedType)
+        {
+            case "String":
+                await RedisService.SetValueAsync(key, value);
+                break;
+
+            case "Hash":
+                if (string.IsNullOrEmpty(hashField))
+                {
+                    Console.WriteLine("Hash field is required for Hash type.");
+                    return;
+                }
+                await RedisService.HashSetAsync(key, hashField, value);
+                break;
+
+            case "List":
+                await RedisService.ListRightPushAsync(key, value);
+                break;
+
+            case "Set":
+                await RedisService.SetAddAsync(key, value);
+                break;
+
+            case "SortedSet":
+                await RedisService.SortedSetAddAsync(key, value, sortedSetScore);
+                break;
+
+            default:
+                Console.WriteLine("Unknown type selected.");
+                break;
+        }
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+        var dialog = await DialogService.ShowAsync<Dialog>("", options);
+
+        Console.WriteLine($"Data inserted: Key = {key}, Type = {selectedType}");
+        ClearInputs();
+    }
+    private void ClearInputs()
+    {
+        key = string.Empty;
+        value = string.Empty;
+        hashField = string.Empty;
+        sortedSetScore = 0;
+    }
+
+}

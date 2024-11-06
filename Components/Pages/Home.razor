@@ -1,0 +1,99 @@
+﻿@page "/"
+
+@inject RedisCommandService RedisCommandService
+<h3>Redis Terminal</h3>
+
+
+
+<div class="output">
+    @foreach (var entry in commandHistory)
+    {
+        <div>@entry</div>
+    }
+</div>
+
+<div>
+    <MudTextField @bind-Value="command" @onkeydown="HandleEnterKey" Label="Enter Redis command" Variant="Variant.Outlined"></MudTextField>
+    
+    <MudButton @onclick="SendCommand" Variant="Variant.Filled" Size="Size.Large"  Color="Color.Tertiary">Send</MudButton>
+
+</div>
+<div class="command-tips">
+    <h4>Redis Commands</h4>
+    <ul>
+        <li><b>GET key</b> - Get the value of a key</li>
+        <li><b>SET key value</b> - Set the value of a key</li>
+        <li><b>DEL key</b> - Delete a key</li>
+        <li><b>LLEN key</b> - Get length of list</li>
+        <li><b>EXISTS key</b> - Check if a key exists</li>
+        <li><b>HGET key field</b> - Get a field from a hash</li>
+        <li><b>LPUSH key value</b> - Add value to a list</li>
+        <li><b>SADD key member</b> - Add member to a set</li>
+        <li><b>ZADD key score member</b> - Add member with score to sorted set</li>
+    </ul>
+</div>
+@code {
+    private string command=string.Empty;
+    private List<string> commandHistory = new();
+
+    private async Task SendCommand()
+    {
+        if (!string.IsNullOrWhiteSpace(command))
+        {
+            commandHistory.Add($"> {command}");
+            string result = await RedisCommandService.ExecuteCommandAsync(command);
+            if(string.IsNullOrEmpty(result))
+                result = "不存在的KEY";
+            commandHistory.Add(result);
+            command = string.Empty;
+        }
+    }
+
+    private async Task HandleEnterKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SendCommand();
+        }
+    }
+}
+
+<style>
+    .output {
+    background-color: #333;
+    color: #fff;
+    padding: 10px;
+    margin-top: 10px;
+    height: 300px;
+    overflow-y: auto;
+    font-family: monospace;
+    }
+
+    .command-tips {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        background-color: #444;
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        font-size: 0.9em;
+        width: 300px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+
+    .command-tips h4 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 1.1em;
+    }
+
+    .command-tips ul {
+        padding-left: 20px;
+        margin: 0;
+    }
+
+    .command-tips li {
+        margin-bottom: 5px;
+    }
+</style>

@@ -1,0 +1,15 @@
+services:
+  redisgui: 
+    # build: . 
+    image: kaikings/redisgui:latest
+    ports:
+      - "5000:5000"
+    depends_on:
+      - redis
+  redis:
+    image: redis
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    
